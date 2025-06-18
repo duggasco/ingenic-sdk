@@ -3,8 +3,8 @@ set -e  # Exit on error
 
 # Configuration variables with defaults
 DEFAULT_KERNEL_VERSION="3.10"
-KDIR="${KDIR:-}"
-CROSS_COMPILE="${CROSS_COMPILE:-}"
+KDIR="/root/output/dekco_dc5l_t23n_sc3332p_rtl8188ftv/build/linux-a3fe228a1b87a6a30767601964e94e34c6ca091e"
+CROSS_COMPILE="/root/output/dekco_dc5l_t23n_sc3332p_rtl8188ftv/per-package/ingenic-sdk/host/bin/mipsel-linux-"
 
 # Function to display usage information
 show_usage() {
