@@ -1,8 +1,0 @@
-kernel//root/ingenic-sdk/tx-isp-t23.ko
-kernel//root/ingenic-sdk/gpio-userkeys.ko
-kernel//root/ingenic-sdk/pwm_core.ko
-kernel//root/ingenic-sdk/pwm_hal.ko
-kernel//root/ingenic-sdk/motor.ko
-kernel//root/ingenic-sdk/ms419xx.ko
-kernel//root/ingenic-sdk/audio.ko
-kernel//root/ingenic-sdk/sensor_sc3332p_t23.ko
