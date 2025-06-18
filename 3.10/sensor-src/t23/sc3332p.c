@@ -471,11 +471,32 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
 		.fps = 15 << 16 | 1,
 		.mbus_code = V4L2_MBUS_FMT_SBGGR10_1X10,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.regs = sensor_init_regs_2304_1296_30fps_mipi_2lane,
+		.regs = sensor_init_regs_2304_1296_25fps_mipi,
 	},
+	
+	
+	
+	
+	
+	
+	
 };
 struct tx_isp_sensor_win_setting *wsize = &sensor_win_sizes[0];
 
+static enum v4l2_mbus_pixelcode sensor_mbus_code[] = {
+	V4L2_MBUS_FMT_SBGGR10_1X10,
+};
+
+
+static struct regval_list sensor_stream_on_dvp[] = {
+	{0x0100, 0x01},
+	{SENSOR_REG_END, 0x00},
+};
+
+static struct regval_list sensor_stream_off_dvp[] = {
+	{0x0100, 0x00},
+	{SENSOR_REG_END, 0x00},
+};
 static struct regval_list sensor_stream_on_mipi[] = {
 	{0x0100, 0x01},
 	{SENSOR_REG_END, 0x00},
@@ -595,8 +616,8 @@ static int sensor_detect(struct tx_isp_subdev *sd, unsigned int *ident)
 
 static int sensor_set_expo(struct tx_isp_subdev *sd, int value)
 {
-	int ret = -1;
-	int it = (value & 0xffff);
+	int ret = 0;
+	int it = (value & 0xffff) * 2;
 	int again = (value & 0xffff0000) >> 16;
 
 	ret += sensor_write(sd, 0x3e00, (unsigned char) ((it >> 12) & 0xf));
@@ -605,7 +626,19 @@ static int sensor_set_expo(struct tx_isp_subdev *sd, int value)
 	ret = sensor_write(sd, 0x3e07, (unsigned char) (again & 0xff));
 	ret += sensor_write(sd, 0x3e09, (unsigned char) (((again >> 8) & 0xff)));
 
+	if (again < 0x740) {
+		ret += sensor_write(sd,0x363c,0x05);
+	} else if (again >= 0x740 && again < 0x1f40) {
+		ret += sensor_write(sd,0x363c,0x07);
+	} else {
+		ret += sensor_write(sd,0x363c,0x07);
+	}
 
+	ret += sensor_write(sd, 0x3e09, (unsigned char)(again & 0xff));
+	ret += sensor_write(sd, 0x3e08, (unsigned char)(((again >> 8) & 0xff)));
+	ret += sensor_write(sd,0x3812,0x30);
+	if (ret < 0)
+		return ret;	 
 
 
 
@@ -713,8 +746,8 @@ static int sensor_init(struct tx_isp_subdev *sd, int enable)
 	sensor->video.mbus.field = V4L2_FIELD_NONE;
 	sensor->video.mbus.colorspace = wsize->colorspace;
 	sensor->video.fps = wsize->fps;
-	sensor->video.max_fps = wsize->fps;
-	sensor->video.min_fps = SENSOR_OUTPUT_MIN_FPS << 16 | 1;		 
+
+
 
 	ret = sensor_write_array(sd, wsize->regs);
 
@@ -767,7 +800,7 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps)
 		ISP_ERROR("warn: fps(%d) not in range\n", fps);
 		return -1;
 	}
-	
+
 
 	ret = sensor_read(sd, 0x320c, &tmp);
 	hts = tmp;
@@ -779,10 +812,10 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps)
 	hts = ((hts << 8) + tmp);
 	vts = sclk * (fps & 0xffff) / hts / ((fps & 0xffff0000) >> 16);
 
-//	ret = sensor_write(sd,0x3812,0x00);
+	ret = sensor_write(sd,0x3812,0x00);
 	ret += sensor_write(sd, 0x320f, (unsigned char)(vts & 0xff));
 	ret += sensor_write(sd, 0x320e, (unsigned char)(vts >> 8));
-//	ret += sensor_write(sd,0x3812,0x30);
+	ret += sensor_write(sd,0x3812,0x30);
 	if (0 != ret) {
 		ISP_ERROR("Error: %s write error\n", SENSOR_NAME);
 		return ret;
@@ -826,11 +859,11 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd,
 		ret = private_gpio_request(reset_gpio,"sensor_reset");
 		if (!ret) {
 			private_gpio_direction_output(reset_gpio, 1);
-			private_msleep(5);
+			private_msleep(50);
 			private_gpio_direction_output(reset_gpio, 0);
-			private_msleep(5);
+			private_msleep(35);
 			private_gpio_direction_output(reset_gpio, 1);
-			private_msleep(5);
+			private_msleep(35);
 		} else {
 			ISP_ERROR("gpio request fail %d\n",reset_gpio);
 		}
@@ -839,9 +872,9 @@ static int sensor_g_chip_ident(struct tx_isp_subdev *sd,
 		ret = private_gpio_request(pwdn_gpio,"sensor_pwdn");
 		if (!ret) {
 			private_gpio_direction_output(pwdn_gpio, 1);
-			private_msleep(5);
+			private_msleep(150);
 			private_gpio_direction_output(pwdn_gpio, 0);
-			private_msleep(5);
+			private_msleep(10);
 		} else {
 			ISP_ERROR("gpio request fail %d\n",pwdn_gpio);
 		}
@@ -995,11 +1028,13 @@ struct platform_device sensor_platform_device = {
 	.num_resources = 0,
 };
 
-static int sensor_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{
+static int sensor_probe(struct i2c_client *client,
+			const struct i2c_device_id *id) {
 	struct tx_isp_subdev *sd;
 	struct tx_isp_video_in *video;
 	struct tx_isp_sensor *sensor;
+	unsigned long rate = 0;
+	int ret;						
 
 	sensor = (struct tx_isp_sensor *)kzalloc(sizeof(*sensor), GFP_KERNEL);
 	if (!sensor) {
