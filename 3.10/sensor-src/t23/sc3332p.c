@@ -27,6 +27,7 @@
 #define SENSOR_REG_DELAY 0xfffe
 
 
+#define SENSOR_OUTPUT_MAX_FPS 15
 #define SENSOR_OUTPUT_MIN_FPS 5
 #define SENSOR_VERSION "H20231115a"
 
@@ -468,8 +469,8 @@ static struct tx_isp_sensor_win_setting sensor_win_sizes[] = {
 		.width = 2304,
 		.height = 1296,
 		.fps = 15 << 16 | 1,
-		.mbus_code = TISP_VI_FMT_SBGGR10_1X10,
-		.colorspace = TISP_COLORSPACE_SRGB,
+		.mbus_code = V4L2_MBUS_FMT_SBGGR10_1X10,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.regs = sensor_init_regs_2304_1296_30fps_mipi_2lane,
 	},
 };
@@ -766,7 +767,7 @@ static int sensor_set_fps(struct tx_isp_subdev *sd, int fps)
 		ISP_ERROR("warn: fps(%d) not in range\n", fps);
 		return -1;
 	}
-	sclk = SENSOR_SUPPORT_30FPS_SCLK;
+	
 
 	ret = sensor_read(sd, 0x320c, &tmp);
 	hts = tmp;
