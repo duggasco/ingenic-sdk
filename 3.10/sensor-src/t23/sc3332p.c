@@ -7,8 +7,15 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/printk.h>
 #include <tx-isp-common.h>
 #include <sensor-common.h>
+
+// Define struct regval_list for compatibility if not provided
+struct regval_list {
+	unsigned short reg_num;
+	unsigned char value;
+};
 
 #define SENSOR_NAME "sc3332p"
 #define SENSOR_I2C_ADDR 0x30
@@ -171,11 +178,11 @@ static int sc3332p_ioctl(struct tx_isp_subdev *sd, unsigned int cmd, void *arg) 
 				sc3332p_write_array(sd, sc3332p_stream_off);
 				sc3332p_write_array(sd, sensor_modes[sensor_mode_index]);
 				sc3332p_write_array(sd, sc3332p_stream_on);
-				dev_info(sd->dev, "Switched to mode index %d
+				pr_info("SC3332P: Switched to mode index %d
 ", sensor_mode_index);
 				ret = 0;
 			} else {
-				dev_err(sd->dev, "Invalid mode index: %d
+				pr_err("SC3332P: Invalid mode index: %d
 ", val->value);
 				ret = -EINVAL;
 			}
@@ -226,12 +233,12 @@ static int sc3332p_probe(struct i2c_client *client, const struct i2c_device_id *
 		if (mode_val < ARRAY_SIZE(sensor_modes)) {
 			sensor_mode_index = mode_val;
 		} else {
-			dev_warn(&client->dev, "Invalid ingenic,mode value %u, defaulting to mode 0
+			pr_warn("SC3332P: Invalid ingenic,mode value %u, defaulting to mode 0
 ", mode_val);
 			sensor_mode_index = 0;
 		}
 	} else {
-		dev_info(&client->dev, "ingenic,mode not specified, defaulting to mode 0
+		pr_info("SC3332P: ingenic,mode not specified, defaulting to mode 0
 ");
 		sensor_mode_index = 0;
 	}
@@ -241,7 +248,8 @@ static int sc3332p_probe(struct i2c_client *client, const struct i2c_device_id *
 		return -ENOMEM;
 	tx_isp_subdev_init(NULL, sd, &sc3332p_ops);
 	tx_isp_set_subdevdata(sd, client);
-	dev_info(&client->dev, "SC3332P sensor probed with mode index %d\n", sensor_mode_index);
+	pr_info("SC3332P: Sensor probed with mode index %d
+", sensor_mode_index);
 	return 0;
 }
 
